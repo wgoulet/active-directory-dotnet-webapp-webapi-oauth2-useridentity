@@ -68,7 +68,6 @@ namespace WebApp.Controllers
                 return View("Error");
             }
 
- 
             // Redeem the authorization code from the response for an access token and refresh token.
             // When this code completes, the user is redirected back to /UserProfile so the UserProfileController.Index
             // method can then fetch the tokens and use them in subsequent calls.
@@ -96,6 +95,7 @@ namespace WebApp.Controllers
                 token.tokenType = recvtoken.token_type;
                 token.refreshToken = recvtoken.refresh_token;
                 token.userId = userObjectID;
+                token.accessTokenExpiry = DateTime.Now.AddSeconds(Convert.ToDouble(recvtoken.expires_in)).ToUniversalTime().ToString(DateTimeFormatInfo.CurrentInfo.UniversalSortableDateTimePattern);
                 Random rnd = new Random();
                 token.Id = rnd.Next();
                 model.OAuthTokens.Add(token);

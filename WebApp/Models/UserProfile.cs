@@ -26,5 +26,8 @@ namespace WebApp.Models
         public string DisplayName { get; set; }
         public string GivenName { get; set; }
         public string Surname { get; set; }
+        public string AccessToken { get; set; }
+        public string RefreshToken { get; set; }
+        public string AccessTokenExpiry { get; set; }
     }
 }

@@ -57,20 +57,69 @@ namespace WebApp.Controllers
             return RedirectToAction("Index", "UserProfile", new { authError = "AuthorizationRequired" });
         }
 
+        // POST: /UserProfile/GetRefreshTokenAndTest
+        [HttpPost]
+        public async Task<ActionResult> GetRefreshTokenAndTest()
+        {
+            
+            string userObjectID = ClaimsPrincipal.Current.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier").Value;
+            IEnumerable<OAuthTokenSet> query =
+              from OAuthTokenSet in this.model.OAuthTokens where OAuthTokenSet.userId == userObjectID select OAuthTokenSet;
+            OAuthTokenSet usertoken = query.First();
+            this.model.OAuthTokens.Remove(usertoken);
+            var result = await this.model.SaveChangesAsync();
+            string dest = "https://login.microsoftonline.com/b3aa98fb-8679-40e4-a942-6047017aa1a4/oauth2/token";
+            HttpWebRequest req = (HttpWebRequest)WebRequest.Create(dest);
+            req.Method = "POST";
+            req.ContentType = "application/x-www-form-urlencoded";
+            string postData = String.Format("grant_type=refresh_token&refrsh_token={0}&client_id={1}&client_secret={2}&resource={3}",
+                usertoken.refreshToken,Startup.clientId,Startup.appKey, Startup.graphResourceId);
+            System.Text.ASCIIEncoding encoding = new System.Text.ASCIIEncoding();
+            byte[] bytes = encoding.GetBytes(postData);
+            req.ContentLength = bytes.Length;
+            Stream nStream = req.GetRequestStream();
+            nStream.Write(bytes, 0, bytes.Length);
+            nStream.Close();
+            HttpWebResponse resp = (HttpWebResponse)req.GetResponse();
+            System.Runtime.Serialization.Json.DataContractJsonSerializer json = new System.Runtime.Serialization.Json.DataContractJsonSerializer(typeof(OAuthTokenResponse));
+            OAuthTokenResponse recvtoken = json.ReadObject(resp.GetResponseStream()) as OAuthTokenResponse;
+            OAuthDataStore model = new OAuthDataStore();
+            OAuthTokenSet token = new OAuthTokenSet();
+            token.accessToken = recvtoken.access_token;
+            token.tokenType = recvtoken.token_type;
+            token.refreshToken = recvtoken.refresh_token;
+            token.userId = userObjectID;
+            token.accessTokenExpiry = DateTime.Now.AddSeconds(Convert.ToDouble(recvtoken.expires_in)).ToUniversalTime().ToString(DateTimeFormatInfo.CurrentInfo.UniversalSortableDateTimePattern);
+            Random rnd = new Random();
+            token.Id = rnd.Next();
+            model.OAuthTokens.Add(token);
+            return RedirectToAction("Index", "UserProfile");
+        }
+
         //
         // GET: /UserProfile/
         public async Task<ActionResult> Index(string authError)
         {
-            UserProfile profile = null;
+            UserProfile profile = new UserProfile();
             AuthenticationContext authContext = null;
             AuthenticationResult result = null;
             string userObjectID = ClaimsPrincipal.Current.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier").Value;
+
+            // Check local OAuthDataStore to see if we have previously cached OAuth bearer tokens for this user.
             IEnumerable<OAuthTokenSet> query =
                from OAuthTokenSet in model.OAuthTokens where OAuthTokenSet.userId == userObjectID select OAuthTokenSet;
 
-            if (!query.Any())
+            if (query.GetEnumerator().MoveNext() == false)
             {
                 authError = "AuthorizationRequired";
+            }
+            else
+            {
+                OAuthTokenSet usertokens = query.First();
+                profile.AccessToken = usertokens.accessToken;
+                profile.RefreshToken = usertokens.refreshToken;
+                profile.AccessTokenExpiry = usertokens.accessTokenExpiry;
+                authError = null;
             }
 
 
@@ -79,7 +128,9 @@ namespace WebApp.Controllers
 
             // Leaving this chunk of code alone, it generates the URL that the user will be redirected to when they
             // opt to sign in again. Per OAuth2 flow, this redirect will send the user to MS OAuth endpoint where they
-            // will enter their creds. The resulting Authorization code is then used to get tokens
+            // will enter their creds. The resulting Authorization code is then used to get tokens. The OAuthController
+            // will redirect users back to this controller, where we should be able to continue because the user completed 
+            // OAuth ok.
             if (authError != null)
             {
                 Uri redirectUri = new Uri(Request.Url.GetLeftPart(UriPartial.Authority).ToString() + "/OAuth");
@@ -116,7 +167,11 @@ namespace WebApp.Controllers
                 if (response.IsSuccessStatusCode)
                 {
                     string responseString = await response.Content.ReadAsStringAsync();
-                    profile = JsonConvert.DeserializeObject<UserProfile>(responseString);
+                    UserProfile tmp = JsonConvert.DeserializeObject<UserProfile>(responseString);
+                    // Copy over only the fields recevied from GraphAPI
+                    profile.DisplayName = tmp.DisplayName;
+                    profile.GivenName = tmp.GivenName;
+                    profile.Surname = tmp.Surname;
                     return View(profile);
                 }
                 else if (response.StatusCode == HttpStatusCode.Unauthorized)
