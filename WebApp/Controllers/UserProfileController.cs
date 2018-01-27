@@ -64,15 +64,15 @@ namespace WebApp.Controllers
             
             string userObjectID = ClaimsPrincipal.Current.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier").Value;
             IEnumerable<OAuthTokenSet> query =
-              from OAuthTokenSet in this.model.OAuthTokens where OAuthTokenSet.userId == userObjectID select OAuthTokenSet;
+              from OAuthTokenSet in model.OAuthTokens where OAuthTokenSet.userId == userObjectID select OAuthTokenSet;
             OAuthTokenSet usertoken = query.First();
-            this.model.OAuthTokens.Remove(usertoken);
-            var result = await this.model.SaveChangesAsync();
+            model.OAuthTokens.Remove(usertoken);
+            var result = await model.SaveChangesAsync();
             string dest = "https://login.microsoftonline.com/b3aa98fb-8679-40e4-a942-6047017aa1a4/oauth2/token";
             HttpWebRequest req = (HttpWebRequest)WebRequest.Create(dest);
             req.Method = "POST";
             req.ContentType = "application/x-www-form-urlencoded";
-            string postData = String.Format("grant_type=refresh_token&refrsh_token={0}&client_id={1}&client_secret={2}&resource={3}",
+            string postData = String.Format("grant_type=refresh_token&refresh_token={0}&client_id={1}&client_secret={2}&resource={3}",
                 usertoken.refreshToken,Startup.clientId,Startup.appKey, Startup.graphResourceId);
             System.Text.ASCIIEncoding encoding = new System.Text.ASCIIEncoding();
             byte[] bytes = encoding.GetBytes(postData);
@@ -83,7 +83,6 @@ namespace WebApp.Controllers
             HttpWebResponse resp = (HttpWebResponse)req.GetResponse();
             System.Runtime.Serialization.Json.DataContractJsonSerializer json = new System.Runtime.Serialization.Json.DataContractJsonSerializer(typeof(OAuthTokenResponse));
             OAuthTokenResponse recvtoken = json.ReadObject(resp.GetResponseStream()) as OAuthTokenResponse;
-            OAuthDataStore model = new OAuthDataStore();
             OAuthTokenSet token = new OAuthTokenSet();
             token.accessToken = recvtoken.access_token;
             token.tokenType = recvtoken.token_type;
@@ -93,7 +92,28 @@ namespace WebApp.Controllers
             Random rnd = new Random();
             token.Id = rnd.Next();
             model.OAuthTokens.Add(token);
-            return RedirectToAction("Index", "UserProfile");
+            result = await model.SaveChangesAsync();
+
+            string requestUrl = String.Format(
+                   CultureInfo.InvariantCulture,
+                   Startup.graphUserUrl,
+                   HttpUtility.UrlEncode(Startup.tenant));
+            HttpClient client = new HttpClient();
+            HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, requestUrl);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.accessToken);
+            HttpResponseMessage response = await client.SendAsync(request);
+            if(response.IsSuccessStatusCode)
+            {
+                ViewBag.RefreshTokenUsedOK = "true";
+            }
+            string responseString = await response.Content.ReadAsStringAsync();
+            UserProfile profile = JsonConvert.DeserializeObject<UserProfile>(responseString);
+            // Copy over only the fields recevied from GraphAPI
+            profile.AccessToken = token.accessToken;
+            profile.AccessTokenExpiry = token.accessTokenExpiry;
+            profile.RefreshToken = token.refreshToken;
+            return View("Index",profile);
+            //return RedirectToAction("Index", "UserProfile");
         }
 
         //

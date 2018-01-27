@@ -6,6 +6,10 @@
 }
 
 <h2>@ViewBag.Title.</h2>
+@if (ViewBag.RefreshTokenUsedOK == "true")
+{
+    <h3>Refresh token used successfully to update profile!</h3>
+}
 
 <table class="table table-bordered table-striped">
     <tr>
