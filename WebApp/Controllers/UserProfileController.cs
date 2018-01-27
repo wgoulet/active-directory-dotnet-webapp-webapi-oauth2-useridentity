@@ -52,10 +52,9 @@ namespace WebApp.Controllers
         [HttpPost]
         public async Task<ActionResult> ClearOAuth()
         {
-            //var cleanupTask = Task.Run(() => model.OAuthTokens.RemoveRange(model.OAuthTokens));
             model.OAuthTokens.RemoveRange(model.OAuthTokens);
             var result = await model.SaveChangesAsync();
-            return RedirectToAction("Index", "UserProfile",new { authError = "AuthorizationRequired" });
+            return RedirectToAction("Index", "UserProfile", new { authError = "AuthorizationRequired" });
         }
 
         //
@@ -65,74 +64,39 @@ namespace WebApp.Controllers
             UserProfile profile = null;
             AuthenticationContext authContext = null;
             AuthenticationResult result = null;
-            bool reauth = false;
             string userObjectID = ClaimsPrincipal.Current.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier").Value;
-            OAuthTokenSet token = new OAuthTokenSet();
             IEnumerable<OAuthTokenSet> query =
                from OAuthTokenSet in model.OAuthTokens where OAuthTokenSet.userId == userObjectID select OAuthTokenSet;
 
-            if(!query.Any())
+            if (!query.Any())
             {
                 authError = "AuthorizationRequired";
             }
-            
 
-            try
+
+            ClientCredential credential = new ClientCredential(Startup.clientId, Startup.appKey);
+            authContext = new AuthenticationContext(Startup.Authority, new TokenDbCache(userObjectID));
+
+            // Leaving this chunk of code alone, it generates the URL that the user will be redirected to when they
+            // opt to sign in again. Per OAuth2 flow, this redirect will send the user to MS OAuth endpoint where they
+            // will enter their creds. The resulting Authorization code is then used to get tokens
+            if (authError != null)
             {
-                ClientCredential credential = new ClientCredential(Startup.clientId, Startup.appKey);
-                authContext = new AuthenticationContext(Startup.Authority, new TokenDbCache(userObjectID));
-
-                if (authError != null)
-                {
-                    Uri redirectUri = new Uri(Request.Url.GetLeftPart(UriPartial.Authority).ToString() + "/OAuth");
-                    string state = GenerateState(userObjectID, Request.Url.ToString());
-                    ViewBag.AuthorizationUrl = await authContext.GetAuthorizationRequestUrlAsync(Startup.graphResourceId, Startup.clientId, redirectUri, UserIdentifier.AnyUser, state == null ? null : "&state=" + state);
-
-                    profile = new UserProfile();
-                    profile.DisplayName = " ";
-                    profile.GivenName = " ";
-                    profile.Surname = " ";
-                    ViewBag.ErrorMessage = authError;
-                    return View(profile);
-                }
-
-                result = await authContext.AcquireTokenSilentAsync(Startup.graphResourceId, credential, UserIdentifier.AnyUser);
-            }
-            catch (AdalException e)
-            {
-                if (e.ErrorCode == "failed_to_acquire_token_silently")
-                {
-                    // Capture error for handling outside of catch block
-                    reauth = true;
-                }
-                else
-                {
-                    ViewBag.ErrorMessage = "Error while Acquiring Token from Cache.";
-                    return View("Error");
-                }
-            }
-
-            if (reauth) {
-                // The user needs to re-authorize.  Show them a message to that effect.
-                // If the user still has a valid session with Azure AD, they will not be prompted for their credentials.
+                Uri redirectUri = new Uri(Request.Url.GetLeftPart(UriPartial.Authority).ToString() + "/OAuth");
+                string state = GenerateState(userObjectID, Request.Url.ToString());
+                ViewBag.AuthorizationUrl = await authContext.GetAuthorizationRequestUrlAsync(Startup.graphResourceId, Startup.clientId, redirectUri, UserIdentifier.AnyUser, state == null ? null : "&state=" + state);
 
                 profile = new UserProfile();
                 profile.DisplayName = " ";
                 profile.GivenName = " ";
                 profile.Surname = " ";
-                ViewBag.ErrorMessage = "AuthorizationRequired";
-                authContext = new AuthenticationContext(Startup.Authority);
-                Uri redirectUri = new Uri(Request.Url.GetLeftPart(UriPartial.Authority).ToString() + "/OAuth");
-
-                string state = GenerateState(userObjectID, Request.Url.ToString());
-
-                ViewBag.AuthorizationUrl = await authContext.GetAuthorizationRequestUrlAsync(Startup.graphResourceId, Startup.clientId, redirectUri, UserIdentifier.AnyUser, state == null ? null : "&state=" + state);
-
+                ViewBag.ErrorMessage = authError;
                 return View(profile);
             }
-            
 
-            try 
+            OAuthTokenSet token = query.First();
+
+            try
             {
                 //
                 // Call the Graph API and retrieve the user's profile.
@@ -140,10 +104,10 @@ namespace WebApp.Controllers
                 string requestUrl = String.Format(
                     CultureInfo.InvariantCulture,
                     Startup.graphUserUrl,
-                    HttpUtility.UrlEncode(result.TenantId));
+                    HttpUtility.UrlEncode(Startup.tenant));
                 HttpClient client = new HttpClient();
                 HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, requestUrl);
-                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", result.AccessToken);
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.accessToken);
                 HttpResponseMessage response = await client.SendAsync(request);
 
                 //
@@ -159,9 +123,10 @@ namespace WebApp.Controllers
                 {
                     //
                     // If the call failed, then drop the current access token and show the user an error indicating they might need to sign-in again.
-                    //
-                    authContext.TokenCache.Clear();
 
+                    model.OAuthTokens.RemoveRange(model.OAuthTokens);
+                    model.SaveChanges();
+                    
                     Uri redirectUri = new Uri(Request.Url.GetLeftPart(UriPartial.Authority).ToString() + "/OAuth");
                     string state = GenerateState(userObjectID, Request.Url.ToString());
                     ViewBag.AuthorizationUrl = await authContext.GetAuthorizationRequestUrlAsync(Startup.graphResourceId, Startup.clientId, redirectUri, UserIdentifier.AnyUser, state == null ? null : "&state=" + state);
@@ -170,14 +135,14 @@ namespace WebApp.Controllers
                     profile.DisplayName = " ";
                     profile.GivenName = " ";
                     profile.Surname = " ";
-                    ViewBag.ErrorMessage = "UnexpectedError";
+                    ViewBag.ErrorMessage = "AuthorizationRequired";
                     return View(profile);
                 }
 
                 ViewBag.ErrorMessage = "Error Calling Graph API.";
                 return View("Error");
-            } 
-            catch 
+            }
+            catch
             {
                 ViewBag.ErrorMessage = "Error Calling Graph API.";
                 return View("Error");
@@ -207,11 +172,11 @@ namespace WebApp.Controllers
 
                 return Url.Encode(Convert.ToBase64String(stateBits));
             }
-            catch 
+            catch
             {
                 return null;
             }
-            
+
         }
     }
 }

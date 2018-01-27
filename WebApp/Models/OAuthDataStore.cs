@@ -28,7 +28,7 @@ namespace WebApp.Models
     {
         public int Id { get; set; }
         public string accessToken { get; set; }
-        public string bearerToken { get; set; }
+        public string tokenType { get; set; }
         public string refreshToken { get; set; }
         public string userId { get; set; }
 

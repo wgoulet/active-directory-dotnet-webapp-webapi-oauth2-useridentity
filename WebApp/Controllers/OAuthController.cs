@@ -70,6 +70,8 @@ namespace WebApp.Controllers
 
  
             // Redeem the authorization code from the response for an access token and refresh token.
+            // When this code completes, the user is redirected back to /UserProfile so the UserProfileController.Index
+            // method can then fetch the tokens and use them in subsequent calls.
             try
             {
                 // Replace this with code to get the access tokens manually
@@ -91,7 +93,7 @@ namespace WebApp.Controllers
                 OAuthDataStore model = new OAuthDataStore();
                 OAuthTokenSet token = new OAuthTokenSet();
                 token.accessToken = recvtoken.access_token;
-                token.bearerToken = recvtoken.token_type;
+                token.tokenType = recvtoken.token_type;
                 token.refreshToken = recvtoken.refresh_token;
                 token.userId = userObjectID;
                 Random rnd = new Random();
