@@ -41,6 +41,23 @@ namespace WebApp.Controllers
     [Authorize]
     public class UserProfileController : Controller
     {
+        OAuthDataStore model;
+
+        public UserProfileController()
+        {
+            model = new OAuthDataStore();
+        }
+
+        // POST: /UserProfile/ClearOAuth
+        [HttpPost]
+        public async Task<ActionResult> ClearOAuth()
+        {
+            //var cleanupTask = Task.Run(() => model.OAuthTokens.RemoveRange(model.OAuthTokens));
+            model.OAuthTokens.RemoveRange(model.OAuthTokens);
+            var result = await model.SaveChangesAsync();
+            return RedirectToAction("Index", "UserProfile",new { authError = "AuthorizationRequired" });
+        }
+
         //
         // GET: /UserProfile/
         public async Task<ActionResult> Index(string authError)
@@ -50,6 +67,15 @@ namespace WebApp.Controllers
             AuthenticationResult result = null;
             bool reauth = false;
             string userObjectID = ClaimsPrincipal.Current.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier").Value;
+            OAuthTokenSet token = new OAuthTokenSet();
+            IEnumerable<OAuthTokenSet> query =
+               from OAuthTokenSet in model.OAuthTokens where OAuthTokenSet.userId == userObjectID select OAuthTokenSet;
+
+            if(!query.Any())
+            {
+                authError = "AuthorizationRequired";
+            }
+            
 
             try
             {
@@ -66,7 +92,7 @@ namespace WebApp.Controllers
                     profile.DisplayName = " ";
                     profile.GivenName = " ";
                     profile.Surname = " ";
-                    ViewBag.ErrorMessage = "UnexpectedError";
+                    ViewBag.ErrorMessage = authError;
                     return View(profile);
                 }
 

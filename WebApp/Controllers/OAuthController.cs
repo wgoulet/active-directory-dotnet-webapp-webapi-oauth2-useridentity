@@ -31,6 +31,7 @@ using Microsoft.Owin.Security.Cookies;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.IO;
 using System.Threading.Tasks;
+using System.Net;
 
 namespace WebApp.Controllers
 {
@@ -71,12 +72,42 @@ namespace WebApp.Controllers
             // Redeem the authorization code from the response for an access token and refresh token.
             try
             {
-                ClientCredential credential = new ClientCredential(Startup.clientId, Startup.appKey);
-                AuthenticationContext authContext = new AuthenticationContext(Startup.Authority, new TokenDbCache(userObjectID));
-                AuthenticationResult result = await authContext.AcquireTokenByAuthorizationCodeAsync(
-                    code, new Uri(Request.Url.GetLeftPart(UriPartial.Path)), credential, Startup.graphResourceId);
+                // Replace this with code to get the access tokens manually
+                string dest = "https://login.microsoftonline.com/b3aa98fb-8679-40e4-a942-6047017aa1a4/oauth2/token";
+                HttpWebRequest req = (HttpWebRequest)WebRequest.Create(dest);
+                req.Method = "POST";
+                req.ContentType = "application/x-www-form-urlencoded";
+                string postData = String.Format("grant_type=authorization_code&client_id={0}&code={1}&redirect_uri={2}&client_secret={3}&resource={4}",
+                    Startup.clientId, code, new Uri(Request.Url.GetLeftPart(UriPartial.Path)), Startup.appKey, resource);
+                System.Text.ASCIIEncoding encoding = new System.Text.ASCIIEncoding();
+                byte[] bytes = encoding.GetBytes(postData);
+                req.ContentLength = bytes.Length;
+                Stream nStream = req.GetRequestStream();
+                nStream.Write(bytes, 0, bytes.Length);
+                nStream.Close();
+                HttpWebResponse resp = (HttpWebResponse)req.GetResponse();               
+                System.Runtime.Serialization.Json.DataContractJsonSerializer json = new System.Runtime.Serialization.Json.DataContractJsonSerializer(typeof(OAuthTokenResponse));
+                OAuthTokenResponse recvtoken = json.ReadObject(resp.GetResponseStream()) as OAuthTokenResponse;
+                OAuthDataStore model = new OAuthDataStore();
+                OAuthTokenSet token = new OAuthTokenSet();
+                token.accessToken = recvtoken.access_token;
+                token.bearerToken = recvtoken.token_type;
+                token.refreshToken = recvtoken.refresh_token;
+                token.userId = userObjectID;
+                Random rnd = new Random();
+                token.Id = rnd.Next();
+                model.OAuthTokens.Add(token);
 
-                // Return to the originating page where the user triggered the sign-in
+                try
+                {
+                    model.SaveChanges();
+
+                }
+                catch (Exception e)
+                {
+
+                    throw;
+                }
                 return Redirect(redirectUri);
             }
             catch (Exception e)

@@ -1,4 +1,6 @@
-﻿@model WebApp.Models.UserProfile
+﻿
+
+@model WebApp.Models.UserProfile
 @{
     ViewBag.Title = "User Profile";
 }
@@ -20,6 +22,16 @@
     </tr>
 </table>
 
+@{ 
+    using (Html.BeginForm("ClearOAuth","UserProfile"))
+    {
+        <div class="form-group">
+            <div class="col-md-offset-2 col-md-10">
+                <input type="submit" class="btn btn-default" value="Clear OAuth Data" />
+            </div>
+        </div>
+    }
+}
 @if (ViewBag.ErrorMessage == "AuthorizationRequired")
 {
     <p>You have to sign-in to see your profile. Click <a href="@ViewBag.AuthorizationUrl" title="here">here</a> to sign-in.</p>
