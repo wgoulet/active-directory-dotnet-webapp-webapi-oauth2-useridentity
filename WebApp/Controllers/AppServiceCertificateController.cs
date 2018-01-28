@@ -142,7 +142,29 @@ namespace WebApp.Controllers
                 ResourceGroups resourceGroups = JsonConvert.DeserializeObject<ResourceGroups>(responseString);
                 foreach(Value v in resourceGroups.value)
                 {
-                    certificates.CertificateName = v.name;
+                    requestUrl = String.Format(
+                      CultureInfo.InvariantCulture,
+                      Startup.resourceManagerWebSitesUrl,
+                      HttpUtility.UrlEncode(Startup.subscriptionId),
+                      HttpUtility.UrlEncode(v.name));
+                    client = new HttpClient();
+                    request = new HttpRequestMessage(HttpMethod.Get, requestUrl);
+                    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", usertoken.accessToken);
+                    response = await client.SendAsync(request);
+                    responseString = await response.Content.ReadAsStringAsync();
+                    Models.AzureRMWebSites.ResourceManagerWebSiteInfo resourceManagerWebSiteInfo = JsonConvert.DeserializeObject<Models.AzureRMWebSites.ResourceManagerWebSiteInfo>(responseString);
+                    foreach(Models.AzureRMWebSites.Value wsv in resourceManagerWebSiteInfo.value)
+                    {
+                        foreach(Models.AzureRMWebSites.Hostnamesslstate sslstate in wsv.properties.hostNameSslStates)
+                        {
+                            if(sslstate.sslState == 1)
+                            {
+                                certificates.CertificateID = sslstate.thumbprint;
+                                certificates.CertificateName = sslstate.name;
+                            }
+                        }
+                    }
+                    
                 }
                 return View(certificates);
             }

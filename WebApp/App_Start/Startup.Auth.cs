@@ -30,6 +30,7 @@ namespace WebApp
         public static string resourceGroupsId = ConfigurationManager.AppSettings["ida:ResourceGroupsId"];
         public static string resourceGroupsUrl = ConfigurationManager.AppSettings["ida:ResourceGroupsUrl"];
         public static string subscriptionId = ConfigurationManager.AppSettings["ida:SubscriptionID"];
+        public static string resourceManagerWebSitesUrl = ConfigurationManager.AppSettings["ida:ResourceManagerWebSitesUrl"];
         //private static string postLogoutRedirectUri = ConfigurationManager.AppSettings["ida:PostLogoutRedirectUri"];
 
         public static readonly string Authority = String.Format(CultureInfo.InvariantCulture, aadInstance, tenant);
