@@ -101,8 +101,10 @@ namespace WebApp.Controllers
         // GET: AppServiceCertificate
         public async Task<ActionResult> Index(string authError)
         {
+            Models.AzureRMWebCertificates.AzureRMWebCertificatesList azureRMWebCertificatesList = new Models.AzureRMWebCertificates.AzureRMWebCertificatesList();
+            Models.AzureRMWebSites.ResourceManagerWebSites resourceManagerWebSites = new Models.AzureRMWebSites.ResourceManagerWebSites();
+            AppServiceCertificates appServiceCertificates = new AppServiceCertificates();
             OAuthTokenSet usertoken = null;
-            AppServiceCertificate certificates = new AppServiceCertificate();
             string userObjectID = ClaimsPrincipal.Current.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier").Value;
             // Always setup the OAuth /authorize URI to use
             Uri redirectUri = new Uri(Request.Url.GetLeftPart(UriPartial.Authority).ToString() + "/OAuth");
@@ -122,9 +124,9 @@ namespace WebApp.Controllers
             else
             {
                 usertoken = query.First();
-                certificates.AccessToken = usertoken.accessToken;
-                certificates.RefreshToken = usertoken.refreshToken;
-                certificates.AccessTokenExpiry = usertoken.accessTokenExpiry;
+                appServiceCertificates.AccessToken = usertoken.accessToken;
+                appServiceCertificates.RefreshToken = usertoken.refreshToken;
+                appServiceCertificates.AccessTokenExpiry = usertoken.accessTokenExpiry;
                 authError = null;
             }
 
@@ -140,7 +142,7 @@ namespace WebApp.Controllers
                 HttpResponseMessage response = await client.SendAsync(request);
                 string responseString = await response.Content.ReadAsStringAsync();
                 ResourceGroups resourceGroups = JsonConvert.DeserializeObject<ResourceGroups>(responseString);
-                foreach(Value v in resourceGroups.value)
+               foreach(Value v in resourceGroups.value)
                 {
                     requestUrl = String.Format(
                       CultureInfo.InvariantCulture,
@@ -153,24 +155,47 @@ namespace WebApp.Controllers
                     response = await client.SendAsync(request);
                     responseString = await response.Content.ReadAsStringAsync();
                     Models.AzureRMWebSites.ResourceManagerWebSiteInfo resourceManagerWebSiteInfo = JsonConvert.DeserializeObject<Models.AzureRMWebSites.ResourceManagerWebSiteInfo>(responseString);
-                    foreach(Models.AzureRMWebSites.Value wsv in resourceManagerWebSiteInfo.value)
+                    resourceManagerWebSites.webSites.Add(resourceManagerWebSiteInfo);
+                    AppServiceCertificate appServiceCertificate = new AppServiceCertificate();
+
+                    foreach (Models.AzureRMWebSites.Value wsv in resourceManagerWebSiteInfo.value)
                     {
                         foreach(Models.AzureRMWebSites.Hostnamesslstate sslstate in wsv.properties.hostNameSslStates)
                         {
                             if(sslstate.sslState == 1)
                             {
-                                certificates.CertificateID = sslstate.thumbprint;
-                                certificates.CertificateName = sslstate.name;
+                                appServiceCertificate.SiteName = sslstate.name;
                             }
                         }
                     }
-                    
+                    requestUrl = String.Format(
+                      CultureInfo.InvariantCulture,
+                      Startup.resourceManagerWebCertificatesUrl,
+                      HttpUtility.UrlEncode(Startup.subscriptionId),
+                      HttpUtility.UrlEncode(v.name));
+                    client = new HttpClient();
+                    request = new HttpRequestMessage(HttpMethod.Get, requestUrl);
+                    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", usertoken.accessToken);
+                    response = await client.SendAsync(request);
+                    responseString = await response.Content.ReadAsStringAsync();
+                    Models.AzureRMWebCertificates.AzureRMWebCertificates azureRMWebCertificates = JsonConvert.DeserializeObject<Models.AzureRMWebCertificates.AzureRMWebCertificates>(responseString);
+                    foreach(Models.AzureRMWebCertificates.Value wsc in azureRMWebCertificates.value)
+                    {
+                        appServiceCertificate.KeyVaultSecretName = wsc.properties.keyVaultSecretName;
+                        appServiceCertificate.CertificateName = wsc.properties.subjectName;
+                        appServiceCertificate.KeyVaultId = wsc.properties.keyVaultId;
+                        appServiceCertificate.CertificateIssuer = wsc.properties.issuer;
+                        appServiceCertificate.CertificateExpiration = wsc.properties.expirationDate;
+                        appServiceCertificate.CertificateThumbprint = wsc.properties.thumbprint;
+                        appServiceCertificate.CertificateHostnames = wsc.properties.hostNames;
+                    }
+                    appServiceCertificates.appServiceCertificates.Add(appServiceCertificate);
                 }
-                return View(certificates);
+                return View(appServiceCertificates);
             }
             else
             {
-                return View(certificates);
+                return View(appServiceCertificates);
             }
         }
         public string GenerateState(string userObjId, string requestUrl)

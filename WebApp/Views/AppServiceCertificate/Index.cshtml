@@ -1,4 +1,34 @@
-﻿@model WebApp.Models.AppServiceCertificate
+﻿
+<script>
+    $('#Dialog-Box').dialog({
+        autoOpen: false,
+        height: 500,
+        width: 700,
+        modal: true
+    });
+function OpenDialog() {
+        var name = $('#Name').val();
+        var address = $('#Address').val();
+        $('#Dialog-Certificate-Subject').val(name);
+        $('#Dialog-Box').dialog().dialog('open');
+    }
+function onsave() {
+        $.ajax({
+            url: '@Url.Action("ActionName", "ControllerName")',
+            type: 'POST',
+            data: {
+                certSubjectName: $('#Dialog-Certificate-Subject').val(),
+            },
+            success: function (msg) {
+            },
+            error: function (msg) {
+            }
+        });
+
+    }
+</script>
+
+@model WebApp.Models.AppServiceCertificates
 
 @{
     ViewBag.Title = "Application Service Certificates";
@@ -6,21 +36,59 @@
 
 <h2>Application Service Certificates</h2>
 
+@foreach (WebApp.Models.AppServiceCertificate asc in Model.appServiceCertificates)
+{
+    <table class="table table-bordered table-striped">
+        <tr>
+            <td>Certificate Name</td>
+            <td>@asc.CertificateName</td>
+            <td>
+                <div>
+                    <button onclick="OpenDialog()">Replace This Certificate</button>
+                </div>
+                <div id="Dialog-Box">
+                    <input type="text" id="Dialog-Certificate-Subject" />
+                    <input type="submit" onclick="onsave()" value="save" />
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td>Key Vault Name</td>
+            <td>@asc.KeyVaultId</td>
+        </tr>
+        <tr>
+            <td>Issuer</td>
+            <td>@asc.CertificateIssuer</td>
+        </tr>
+        <tr>
+            <td>Certificate Expiration</td>
+            <td>@asc.CertificateExpiration</td>
+        </tr>
+        <tr>
+            <td>Certificate Thumbprint</td>
+            <td>@asc.CertificateThumbprint</td>
+        </tr>
+        <tr>
+            <td>KeyVault Secret Name</td>
+            <td>@asc.KeyVaultSecretName</td>
+        </tr>
+        <tr>
+            <td>Site Name</td>
+            <td>@asc.SiteName</td>
+        </tr>
+        <tr>
+            <td>Hostnames in Certificate</td>
+            <td>
+                @foreach (string host in asc.CertificateHostnames)
+                {
+                    @host
+                }
+            </td>
+        </tr>
 
-<table class="table table-bordered table-striped">
-    <tr>
-        <td>Certificate Name</td>
-        <td>@Model.CertificateName</td>
-    </tr>
-    <tr>
-        <td>Certificate ID</td>
-        <td>@Model.CertificateID</td>
-    </tr>
-    <tr>
-        <td>KeyVault Secret Name</td>
-        <td>@Model.KeyVaultSecretName</td>
-    </tr>
-</table>
+    </table>
+}
+
 <h3>OAuth Tokens</h3>
 <table class="table table-bordered table-striped" width="200">
     <tr>
@@ -66,6 +134,4 @@
 {
     <p class="text-danger">An unexpected error occurred while retrieving your profile.  You may need to <a href="@ViewBag.AuthorizationUrl">sign-in again</a>.</p>
 }
-
-
 

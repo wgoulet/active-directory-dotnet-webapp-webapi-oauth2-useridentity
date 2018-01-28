@@ -5,6 +5,14 @@ using System.Web;
 
 namespace WebApp.Models.AzureRMWebSites
 {
+    public class ResourceManagerWebSites
+    {
+        public ResourceManagerWebSites()
+        {
+            webSites = new List<ResourceManagerWebSiteInfo>();
+        }
+        public List<ResourceManagerWebSiteInfo> webSites { get; set; }
+    }
     public class ResourceManagerWebSiteInfo
     {
         public Value[] value { get; set; }
