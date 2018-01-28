@@ -1,32 +1,4 @@
 ﻿
-<script>
-    $('#Dialog-Box').dialog({
-        autoOpen: false,
-        height: 500,
-        width: 700,
-        modal: true
-    });
-function OpenDialog() {
-        var name = $('#Name').val();
-        var address = $('#Address').val();
-        $('#Dialog-Certificate-Subject').val(name);
-        $('#Dialog-Box').dialog().dialog('open');
-    }
-function onsave() {
-        $.ajax({
-            url: '@Url.Action("ActionName", "ControllerName")',
-            type: 'POST',
-            data: {
-                certSubjectName: $('#Dialog-Certificate-Subject').val(),
-            },
-            success: function (msg) {
-            },
-            error: function (msg) {
-            }
-        });
-
-    }
-</script>
 
 @model WebApp.Models.AppServiceCertificates
 
@@ -35,7 +7,9 @@ function onsave() {
 }
 
 <h2>Application Service Certificates</h2>
-
+<div id="dialog" title="Basic dialog">
+    <p>This is the default dialog which is useful for displaying information. The dialog window can be moved, resized and closed with the 'x' icon.</p>
+</div>
 @foreach (WebApp.Models.AppServiceCertificate asc in Model.appServiceCertificates)
 {
     <table class="table table-bordered table-striped">
@@ -44,11 +18,16 @@ function onsave() {
             <td>@asc.CertificateName</td>
             <td>
                 <div>
-                    <button onclick="OpenDialog()">Replace This Certificate</button>
-                </div>
-                <div id="Dialog-Box">
-                    <input type="text" id="Dialog-Certificate-Subject" />
-                    <input type="submit" onclick="onsave()" value="save" />
+                    @using (Html.BeginForm("ClearOAuth", "AppServiceCertificate"))
+                    {
+                    <div class="form-group">
+                        <div class="col-md-offset-2 col-md-10">
+                            @Html.TextArea("replaceCertName", asc.CertificateName, new { @class = "form-control",rows=5,columns=40 });
+                            <br />
+                            <input type="submit" class="btn btn-default" value="Replace This Certificate" />
+                        </div>
+                    </div>
+                    }
                 </div>
             </td>
         </tr>
