@@ -98,6 +98,28 @@ namespace WebApp.Controllers
             return View("Index", profile);
         }
 
+        // POST: /AppServiceCertificate/ReplaceCertificate
+        [HttpPost]
+        public ActionResult ReplaceCertificate(AppServiceCertificate ascModel)
+        {
+            OAuthTokenSet usertoken = null;
+            string authError = null;
+            string userObjectID = ClaimsPrincipal.Current.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier").Value;
+            IEnumerable<OAuthTokenSet> query =
+              from OAuthTokenSet in model.OAuthTokens where OAuthTokenSet.userId == userObjectID select OAuthTokenSet;
+
+            if (query.GetEnumerator().MoveNext() == false)
+            {
+                authError = "AuthorizationRequired";
+            }
+            else
+            {
+                usertoken = query.First();
+                authError = null;
+            }
+            return RedirectToAction("Index", "AppServiceCertificate");
+        }
+
         // GET: AppServiceCertificate
         public async Task<ActionResult> Index(string authError)
         {

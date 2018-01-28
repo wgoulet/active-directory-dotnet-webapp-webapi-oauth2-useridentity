@@ -18,15 +18,25 @@
             <td>@asc.CertificateName</td>
             <td>
                 <div>
-                    @using (Html.BeginForm("ClearOAuth", "AppServiceCertificate"))
+                    @using (Html.BeginForm("ReplaceCertificate", "AppServiceCertificate"))
                     {
-                    <div class="form-group">
-                        <div class="col-md-offset-2 col-md-10">
-                            @Html.TextArea("replaceCertName", asc.CertificateName, new { @class = "form-control",rows=5,columns=40 });
-                            <br />
-                            <input type="submit" class="btn btn-default" value="Replace This Certificate" />
+                        <div class="form-group">
+                            <div class="col-md-offset-2 col-md-10">
+                                @Html.TextArea("ReplacementName", asc.CertificateName, new { @class = "form-control", rows = 5, columns = 40 })
+                                @Html.CheckBox("Replace", asc.Replace, new { id = "replaceflag" })
+                                @Html.Label("replaceflag", "Replace this certificate on the site?")
+                                @Html.Hidden("CertificateName", asc.CertificateName)
+                                @Html.Hidden("KeyVaultId",asc.KeyVaultId)
+                                @Html.Hidden("KeyVaultSecretName",asc.KeyVaultSecretName)
+                                @Html.Hidden("CertificateIssuer",asc.CertificateIssuer)
+                                @Html.Hidden("CertificateExpiration",asc.CertificateExpiration)
+                                @Html.Hidden("CertificateThumbprint",asc.CertificateThumbprint)
+                                @Html.Hidden("SiteName",asc.SiteName)
+                                @Html.Hidden("CertificateHostnames",asc.CertificateHostnames)                                
+                                <br />
+                                <input type="submit" class="btn btn-default" value="Process" />
+                            </div>
                         </div>
-                    </div>
                     }
                 </div>
             </td>

@@ -27,5 +27,7 @@ namespace WebApp.Models
         public string CertificateThumbprint { get; set; }
         public string SiteName { get; set; }
         public string[] CertificateHostnames { get; set; }
+        public string ReplacementName { get; set; }
+        public bool Replace { get; set; }
     }
 }
