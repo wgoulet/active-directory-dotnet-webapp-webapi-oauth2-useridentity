@@ -8,3 +8,21 @@
 <h2 class="text-danger">An error occurred while processing your request.</h2>
 <h3 class="text-danger">@ViewBag.ErrorMessage</h3>
 
+@{
+    using (Html.BeginForm("ClearOAuth", "UserProfile"))
+    {
+        <div class="form-group">
+            <div class="col-md-offset-2 col-md-10">
+                <input type="submit" class="btn btn-default" value="Clear OAuth Data" />
+            </div>
+        </div>
+    }
+    using (Html.BeginForm("GetRefreshTokenAndTest", "UserProfile"))
+    {
+        <div class="form-group">
+            <div class="col-md-offset-2 col-md-10">
+                <input type="submit" class="btn btn-default" value="Get and Test Refresh Token" />
+            </div>
+        </div>
+    }
+}

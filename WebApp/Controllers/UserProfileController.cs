@@ -113,7 +113,6 @@ namespace WebApp.Controllers
             profile.AccessTokenExpiry = token.accessTokenExpiry;
             profile.RefreshToken = token.refreshToken;
             return View("Index",profile);
-            //return RedirectToAction("Index", "UserProfile");
         }
 
         //
@@ -121,10 +120,14 @@ namespace WebApp.Controllers
         public async Task<ActionResult> Index(string authError)
         {
             UserProfile profile = new UserProfile();
-            AuthenticationContext authContext = null;
-            AuthenticationResult result = null;
+          
             string userObjectID = ClaimsPrincipal.Current.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier").Value;
-
+            // Always setup the OAuth /authorize URI to use
+            Uri redirectUri = new Uri(Request.Url.GetLeftPart(UriPartial.Authority).ToString() + "/OAuth");
+            string state = GenerateState(userObjectID, Request.Url.ToString());
+            string msoauthUri = string.Format("{0}/oauth2/authorize?resource={1}&client_id={2}&response_type=code&redirect_uri={3}&state={4}",
+                Startup.Authority, Url.Encode(Startup.graphResourceId), Startup.clientId, Url.Encode(redirectUri.ToString()), state);
+            ViewBag.AuthorizationUrl = msoauthUri;
             // Check local OAuthDataStore to see if we have previously cached OAuth bearer tokens for this user.
             IEnumerable<OAuthTokenSet> query =
                from OAuthTokenSet in model.OAuthTokens where OAuthTokenSet.userId == userObjectID select OAuthTokenSet;
@@ -143,9 +146,7 @@ namespace WebApp.Controllers
             }
 
 
-            ClientCredential credential = new ClientCredential(Startup.clientId, Startup.appKey);
-            authContext = new AuthenticationContext(Startup.Authority, new TokenDbCache(userObjectID));
-
+            
             // Leaving this chunk of code alone, it generates the URL that the user will be redirected to when they
             // opt to sign in again. Per OAuth2 flow, this redirect will send the user to MS OAuth endpoint where they
             // will enter their creds. The resulting Authorization code is then used to get tokens. The OAuthController
@@ -153,10 +154,6 @@ namespace WebApp.Controllers
             // OAuth ok.
             if (authError != null)
             {
-                Uri redirectUri = new Uri(Request.Url.GetLeftPart(UriPartial.Authority).ToString() + "/OAuth");
-                string state = GenerateState(userObjectID, Request.Url.ToString());
-                ViewBag.AuthorizationUrl = await authContext.GetAuthorizationRequestUrlAsync(Startup.graphResourceId, Startup.clientId, redirectUri, UserIdentifier.AnyUser, state == null ? null : "&state=" + state);
-
                 profile = new UserProfile();
                 profile.DisplayName = " ";
                 profile.GivenName = " ";
@@ -202,10 +199,8 @@ namespace WebApp.Controllers
                     model.OAuthTokens.RemoveRange(model.OAuthTokens);
                     model.SaveChanges();
                     
-                    Uri redirectUri = new Uri(Request.Url.GetLeftPart(UriPartial.Authority).ToString() + "/OAuth");
-                    string state = GenerateState(userObjectID, Request.Url.ToString());
-                    ViewBag.AuthorizationUrl = await authContext.GetAuthorizationRequestUrlAsync(Startup.graphResourceId, Startup.clientId, redirectUri, UserIdentifier.AnyUser, state == null ? null : "&state=" + state);
-
+                   
+                    
                     profile = new UserProfile();
                     profile.DisplayName = " ";
                     profile.GivenName = " ";
@@ -213,9 +208,12 @@ namespace WebApp.Controllers
                     ViewBag.ErrorMessage = "AuthorizationRequired";
                     return View(profile);
                 }
+                else
+                {
+                    ViewBag.ErrorMessage = "Error Calling Graph API.";
+                    return View("Error");
+                }
 
-                ViewBag.ErrorMessage = "Error Calling Graph API.";
-                return View("Error");
             }
             catch
             {
