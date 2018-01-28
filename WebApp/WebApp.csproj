@@ -196,6 +196,7 @@
     <Compile Include="Models\IdentityModels.cs" />
     <Compile Include="Models\OAuthDataStore.cs" />
     <Compile Include="Models\OAuthTokenResponse.cs" />
+    <Compile Include="Models\ResourceGroups.cs" />
     <Compile Include="Models\TokenCacheEntry.cs" />
     <Compile Include="Models\TokenDbCache.cs" />
     <Compile Include="Models\UserProfile.cs" />

@@ -1,8 +1,71 @@
 ﻿@model WebApp.Models.AppServiceCertificate
 
 @{
-    ViewBag.Title = "AppServiceCertificate";
+    ViewBag.Title = "Application Service Certificates";
 }
 
-<h2>AppServiceCertificate</h2>
+<h2>Application Service Certificates</h2>
+
+
+<table class="table table-bordered table-striped">
+    <tr>
+        <td>Certificate Name</td>
+        <td>@Model.CertificateName</td>
+    </tr>
+    <tr>
+        <td>Certificate ID</td>
+        <td>@Model.CertificateID</td>
+    </tr>
+    <tr>
+        <td>KeyVault Secret Name</td>
+        <td>@Model.KeyVaultSecretName</td>
+    </tr>
+</table>
+<h3>OAuth Tokens</h3>
+<table class="table table-bordered table-striped" width="200">
+    <tr>
+        <td width="10%">Access Token</td>
+        <td class="rowbody" width="70%">@Model.AccessToken</td>
+        <td width="10%">Expires On</td>
+        <td width="10%">@Model.AccessTokenExpiry</td>
+    </tr>
+    <tr>
+        <td>Refresh Token</td>
+        <td class="rowbody">@Model.RefreshToken</td>
+    </tr>
+</table>
+@{
+    using (Html.BeginForm("ClearOAuth", "AppServiceCertificate"))
+    {
+        <div class="form-group">
+            <div class="col-md-offset-2 col-md-10">
+                <input type="submit" class="btn btn-default" value="Clear OAuth Data" />
+            </div>
+        </div>
+    }
+    using (Html.BeginForm("GetRefreshTokenAndTest", "AppServiceCertificate"))
+    {
+        <div class="form-group">
+            <div class="col-md-offset-2 col-md-10">
+                <input type="submit" class="btn btn-default" value="Get and Test Refresh Token" />
+            </div>
+            <div class="col-md-offset-2 col-md-10">
+                <p>Click <a href="@ViewBag.AuthorizationUrl" title="here">here</a> to redirect to /oauth2/authorize</p>
+            </div>
+        </div>
+    }
+}
+
+
+@if (ViewBag.ErrorMessage == "AuthorizationRequired")
+{
+    <p>You have to sign-in to see your profile. Click <a href="@ViewBag.AuthorizationUrl" title="here">here</a> to sign-in.</p>
+}
+
+@if (ViewBag.ErrorMessage == "UnexpectedError")
+{
+    <p class="text-danger">An unexpected error occurred while retrieving your profile.  You may need to <a href="@ViewBag.AuthorizationUrl">sign-in again</a>.</p>
+}
+
+
 
