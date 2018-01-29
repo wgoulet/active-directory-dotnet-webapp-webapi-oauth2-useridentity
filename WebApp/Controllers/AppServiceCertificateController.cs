@@ -19,6 +19,7 @@ using Microsoft.Owin.Security.Cookies;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.IO;
 using System.Net;
+using WebApp.Models.KeyVault;
 
 namespace WebApp.Controllers
 {
@@ -100,10 +101,14 @@ namespace WebApp.Controllers
 
         // POST: /AppServiceCertificate/ReplaceCertificate
         [HttpPost]
-        public ActionResult ReplaceCertificate(AppServiceCertificate ascModel)
+        public async Task<ActionResult> ReplaceCertificate(AppServiceCertificate ascModel)
         {
             OAuthTokenSet usertoken = null;
             string authError = null;
+            HttpClient client = null;
+            HttpRequestMessage request = null;
+            HttpResponseMessage response = null;
+            string responseString = null;
             string userObjectID = ClaimsPrincipal.Current.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier").Value;
             IEnumerable<OAuthTokenSet> query =
               from OAuthTokenSet in model.OAuthTokens where OAuthTokenSet.userId == userObjectID select OAuthTokenSet;
@@ -117,6 +122,30 @@ namespace WebApp.Controllers
                 usertoken = query.First();
                 authError = null;
             }
+            string kvname = ascModel.ReplacementName.Replace('.', '-');
+            string requestUrl = String.Format(
+                       CultureInfo.InvariantCulture,
+                       Startup.keyVaultCreateCertificateUrl,Startup.keyVaultName, kvname);
+            KeyVaultRequest keyVaultRequest = new KeyVaultRequest();
+            keyVaultRequest.policy = new Models.KeyVault.Policy();
+            keyVaultRequest.policy.x509_props = new X509_Props();
+            keyVaultRequest.policy.x509_props.subject = String.Format("DN={0}",kvname);
+            string postData = JsonConvert.SerializeObject(keyVaultRequest);
+            System.Text.ASCIIEncoding encoding = new System.Text.ASCIIEncoding();
+            byte[] bytes = encoding.GetBytes(postData);
+            HttpWebRequest req = (HttpWebRequest)WebRequest.Create(requestUrl);
+            req.Method = "POST";
+            req.ContentType = "application/json";
+
+            client = new HttpClient();
+            req.Headers[HttpRequestHeader.Authorization] = new AuthenticationHeaderValue("bearer",usertoken.accessToken).ToString();
+            req.ContentLength = bytes.Length;
+            Stream nStream = req.GetRequestStream();
+            nStream.Write(bytes, 0, bytes.Length);
+            nStream.Close();
+            HttpWebResponse resp = (HttpWebResponse)req.GetResponse();
+            //responseString = resp.
+
             return RedirectToAction("Index", "AppServiceCertificate");
         }
 
@@ -151,7 +180,7 @@ namespace WebApp.Controllers
                 appServiceCertificates.AccessTokenExpiry = usertoken.accessTokenExpiry;
                 authError = null;
             }
-
+           
             if (authError == null)
             {
                 string requestUrl = String.Format(

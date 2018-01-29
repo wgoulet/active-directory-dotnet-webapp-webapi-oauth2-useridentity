@@ -195,6 +195,7 @@
     <Compile Include="Models\AppServiceCertificate.cs" />
     <Compile Include="Models\AzureRMWebCertificates\AzureRMWebCertificates.cs" />
     <Compile Include="Models\IdentityModels.cs" />
+    <Compile Include="Models\KeyVault\KeyVaultRequest.cs" />
     <Compile Include="Models\OAuthDataStore.cs" />
     <Compile Include="Models\OAuthTokenResponse.cs" />
     <Compile Include="Models\ResourceGroups.cs" />

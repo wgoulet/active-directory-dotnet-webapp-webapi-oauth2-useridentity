@@ -32,6 +32,9 @@ namespace WebApp
         public static string subscriptionId = ConfigurationManager.AppSettings["ida:SubscriptionID"];
         public static string resourceManagerWebSitesUrl = ConfigurationManager.AppSettings["ida:ResourceManagerWebSitesUrl"];
         public static string resourceManagerWebCertificatesUrl = ConfigurationManager.AppSettings["ida:ResourceManagerWebCertificatesUrl"];
+        public static string keyVaultUrl = ConfigurationManager.AppSettings["ida:KeyVaultUrl"];
+        public static string keyVaultCreateCertificateUrl = ConfigurationManager.AppSettings["ida:KeyVaultCreateCertificateUrl"];
+        public static string keyVaultName = ConfigurationManager.AppSettings["ida:KeyVaultName"];
         //private static string postLogoutRedirectUri = ConfigurationManager.AppSettings["ida:PostLogoutRedirectUri"];
 
         public static readonly string Authority = String.Format(CultureInfo.InvariantCulture, aadInstance, tenant);
