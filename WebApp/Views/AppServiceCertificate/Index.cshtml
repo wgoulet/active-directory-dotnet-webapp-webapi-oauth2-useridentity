@@ -5,11 +5,17 @@
 @{
                 /**/
 
+                /**/
+
                 ViewBag.Title = "Application Service Certificates";
 }
 
 <h2>Application Service Certificates</h2>
 @if (ViewBag.Error == "AuthorizationRequired")
+{
+    <p>You have to sign-in to access Azure Resource Manager APIs. Click <a href="@ViewBag.AuthorizationUrl" title="here">here</a> to sign-in.</p>
+}
+else if (ViewBag.Error == "AuthorizationRequiredKV")
 {
     <p>You have to sign-in to access your keyvault. Click <a href="@ViewBag.AuthorizationUrl" title="here">here</a> to sign-in.</p>
 }

@@ -1,0 +1,84 @@
+﻿@model WebApp.Models.AppServiceCertificate
+
+@{
+    /**/
+
+    /**/
+
+    ViewBag.Title = "Replace Application Service Certificates";
+}
+<h2>Replace Application Service Certificates</h2>
+@if (ViewBag.Error == "AuthorizationRequiredKV")
+{
+    <p>You have to sign-in to access your keyvault. Click <a href="@ViewBag.AuthorizationUrl" title="here">here</a> to sign-in.</p>
+}
+
+<table class="table table-bordered table-striped">
+    <tr>
+        <td>Certificate Name</td>
+        <td>@Model.CertificateName</td>
+        <td>
+            <div>
+                @using (Html.BeginForm("ReplaceCertificate", "AppServiceCertificate"))
+                {
+                    <div class="form-group">
+                        <div class="col-md-offset-2 col-md-10">
+                            @Html.TextArea("ReplacementName", Model.CertificateName, new { @class = "form-control", rows = 5, columns = 40 })
+                            @Html.CheckBox("Replace", Model.Replace, new { id = "replaceflag" })
+                            @Html.Label("replaceflag", "Replace this certificate on the site?")
+                            @Html.Hidden("CertificateName", Model.CertificateName)
+                            @Html.Hidden("KeyVaultId", Model.KeyVaultId)
+                            @Html.Hidden("KeyVaultSecretName", Model.KeyVaultSecretName)
+                            @Html.Hidden("CertificateIssuer", Model.CertificateIssuer)
+                            @Html.Hidden("CertificateExpiration", Model.CertificateExpiration)
+                            @Html.Hidden("CertificateThumbprint", Model.CertificateThumbprint)
+                            @Html.Hidden("SiteName", Model.SiteName)
+                            @Html.Hidden("CertificateHostnames", Model.CertificateHostnames)
+                            <br />
+                            <input type="submit" class="btn btn-default" value="Process" />
+                        </div>
+                    </div>
+                }
+            </div>
+        </td>
+    </tr>
+    <tr>
+        <td>Key Vault Name</td>
+        <td>@Model.KeyVaultId</td>
+    </tr>
+    <tr>
+        <td>Issuer</td>
+        <td>@Model.CertificateIssuer</td>
+    </tr>
+    <tr>
+        <td>Certificate Expiration</td>
+        <td>@Model.CertificateExpiration</td>
+    </tr>
+    <tr>
+        <td>Certificate Thumbprint</td>
+        <td>@Model.CertificateThumbprint</td>
+    </tr>
+    <tr>
+        <td>KeyVault Secret Name</td>
+        <td>@Model.KeyVaultSecretName</td>
+    </tr>
+    <tr>
+        <td>Site Name</td>
+        <td>@Model.SiteName</td>
+    </tr>
+    <tr>
+        <td>Hostnames in Certificate</td>
+        <td>
+            @foreach (string host in Model.CertificateHostnames)
+            {
+                @host
+            }
+        </td>
+    </tr>
+
+</table>
+
+
+
+
+

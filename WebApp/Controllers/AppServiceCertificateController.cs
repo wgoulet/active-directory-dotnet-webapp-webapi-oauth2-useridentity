@@ -100,12 +100,11 @@ namespace WebApp.Controllers
         }
 
         // POST: /AppServiceCertificate/ReplaceCertificate
-        [HttpPost]
-        public async Task<ActionResult> ReplaceCertificate(AppServiceCertificate ascModel)
+        //[HttpPost]
+        public async Task<ActionResult> ReplaceCertificate(AppServiceCertificate ascModel,string authError)
         {
-            OAuthTokenSet usertoken = null;
-            string authError = null;
-            HttpClient client = null;
+            OAuthTokenSet usertoken = new OAuthTokenSet();
+            HttpClient client = null;           
             //HttpRequestMessage request = null;
             //HttpResponseMessage response = null;
             string responseString = null;
@@ -120,7 +119,14 @@ namespace WebApp.Controllers
 
             if (query.GetEnumerator().MoveNext() == false)
             {
+                usertoken.state = state;
+                usertoken.userId = userObjectID;
+                usertoken.resourceName = Startup.keyVaultResourceUrl;
+                model.OAuthTokens.Add(usertoken);
+                await model.SaveChangesAsync();
                 authError = "AuthorizationRequired";
+                ViewBag.Error = "AuthorizationRequiredKV";
+                return View(ascModel);
             }
             else
             {
