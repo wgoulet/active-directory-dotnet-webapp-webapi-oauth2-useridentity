@@ -106,12 +106,17 @@ namespace WebApp.Controllers
             OAuthTokenSet usertoken = null;
             string authError = null;
             HttpClient client = null;
-            HttpRequestMessage request = null;
-            HttpResponseMessage response = null;
+            //HttpRequestMessage request = null;
+            //HttpResponseMessage response = null;
             string responseString = null;
             string userObjectID = ClaimsPrincipal.Current.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier").Value;
+            Uri redirectUri = new Uri(Request.Url.GetLeftPart(UriPartial.Authority).ToString() + "/OAuth");
+            string state = GenerateState(userObjectID, Request.Url.ToString());
+            string msoauthUri = string.Format("{0}/oauth2/authorize?resource={1}&client_id={2}&response_type=code&redirect_uri={3}&state={4}",
+                Startup.Authority, Url.Encode(Startup.keyVaultResourceUrl), Startup.clientId, Url.Encode(redirectUri.ToString()), state);
+            ViewBag.AuthorizationUrl = msoauthUri;
             IEnumerable<OAuthTokenSet> query =
-              from OAuthTokenSet in model.OAuthTokens where OAuthTokenSet.userId == userObjectID select OAuthTokenSet;
+              from OAuthTokenSet in model.OAuthTokens where OAuthTokenSet.userId == userObjectID && OAuthTokenSet.resourceName == Startup.keyVaultResourceUrl select OAuthTokenSet;
 
             if (query.GetEnumerator().MoveNext() == false)
             {
@@ -125,130 +130,147 @@ namespace WebApp.Controllers
             string kvname = ascModel.ReplacementName.Replace('.', '-');
             string requestUrl = String.Format(
                        CultureInfo.InvariantCulture,
-                       Startup.keyVaultCreateCertificateUrl,Startup.keyVaultName, kvname);
+                       Startup.keyVaultCreateCertificateUrl, Startup.keyVaultName, kvname);
             KeyVaultRequest keyVaultRequest = new KeyVaultRequest();
             keyVaultRequest.policy = new Models.KeyVault.Policy();
             keyVaultRequest.policy.x509_props = new X509_Props();
-            keyVaultRequest.policy.x509_props.subject = String.Format("DN={0}",kvname);
+            keyVaultRequest.policy.x509_props.subject = String.Format("DN={0}", kvname);
             string postData = JsonConvert.SerializeObject(keyVaultRequest);
             System.Text.ASCIIEncoding encoding = new System.Text.ASCIIEncoding();
             byte[] bytes = encoding.GetBytes(postData);
-            HttpWebRequest req = (HttpWebRequest)WebRequest.Create(requestUrl);
-            req.Method = "POST";
-            req.ContentType = "application/json";
-
             client = new HttpClient();
-            req.Headers[HttpRequestHeader.Authorization] = new AuthenticationHeaderValue("bearer",usertoken.accessToken).ToString();
-            req.ContentLength = bytes.Length;
-            Stream nStream = req.GetRequestStream();
-            nStream.Write(bytes, 0, bytes.Length);
-            nStream.Close();
-            HttpWebResponse resp = (HttpWebResponse)req.GetResponse();
-            //responseString = resp.
-
+            HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, requestUrl);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", usertoken.accessToken);
+            request.Content = new ByteArrayContent(bytes);
+            HttpResponseMessage resp = await client.SendAsync(request);
+            if (resp.StatusCode != HttpStatusCode.OK)
+            {
+                ViewBag.Error = "unauthorized";
+                AppServiceCertificates ascs = new AppServiceCertificates();
+                ascs.appServiceCertificates.Add(ascModel);
+                return RedirectToAction("Index", "AppServiceCertificate");
+            }
+            responseString = await resp.Content.ReadAsStringAsync();
             return RedirectToAction("Index", "AppServiceCertificate");
         }
 
         // GET: AppServiceCertificate
         public async Task<ActionResult> Index(string authError)
         {
+            AppServiceCertificates appServiceCertificates = new AppServiceCertificates();
+            OAuthTokenSet usertoken = new OAuthTokenSet();
             Models.AzureRMWebCertificates.AzureRMWebCertificatesList azureRMWebCertificatesList = new Models.AzureRMWebCertificates.AzureRMWebCertificatesList();
             Models.AzureRMWebSites.ResourceManagerWebSites resourceManagerWebSites = new Models.AzureRMWebSites.ResourceManagerWebSites();
-            AppServiceCertificates appServiceCertificates = new AppServiceCertificates();
-            OAuthTokenSet usertoken = null;
-            string userObjectID = ClaimsPrincipal.Current.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier").Value;
             // Always setup the OAuth /authorize URI to use
             Uri redirectUri = new Uri(Request.Url.GetLeftPart(UriPartial.Authority).ToString() + "/OAuth");
+            string userObjectID = ClaimsPrincipal.Current.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier").Value;
             string state = GenerateState(userObjectID, Request.Url.ToString());
             string msoauthUri = string.Format("{0}/oauth2/authorize?resource={1}&client_id={2}&response_type=code&redirect_uri={3}&state={4}",
-                Startup.Authority, Url.Encode(Startup.resourceGroupsId), Startup.clientId, Url.Encode(redirectUri.ToString()), state);
+                    Startup.Authority, Url.Encode(Startup.resourceGroupsId), Startup.clientId, Url.Encode(redirectUri.ToString()), state);
             ViewBag.AuthorizationUrl = msoauthUri;
 
-            // Check local OAuthDataStore to see if we have previously cached OAuth bearer tokens for this user.
-            IEnumerable<OAuthTokenSet> query =
-               from OAuthTokenSet in model.OAuthTokens where OAuthTokenSet.userId == userObjectID select OAuthTokenSet;
-
-            if (query.GetEnumerator().MoveNext() == false)
+            // If we are loaded and we have no credentials, we will create a UserToken object to store the state that we include
+            // in the link we construct to the Authorization endpoint. Once the user completes authorization, the OAuthController 
+            // will look up the user token that we created and fill it in with the tokens it obtains.
+            if (authError != null)
             {
-                authError = "AuthorizationRequired";
+                usertoken.state = state;
+                usertoken.userId = userObjectID;
+                usertoken.resourceName = Startup.resourceGroupsId;
+                model.OAuthTokens.Add(usertoken);
+                await model.SaveChangesAsync();                
+                return View(appServiceCertificates);
             }
             else
             {
-                usertoken = query.First();
-                appServiceCertificates.AccessToken = usertoken.accessToken;
-                appServiceCertificates.RefreshToken = usertoken.refreshToken;
-                appServiceCertificates.AccessTokenExpiry = usertoken.accessTokenExpiry;
-                authError = null;
-            }
-           
-            if (authError == null)
-            {
-                string requestUrl = String.Format(
-                       CultureInfo.InvariantCulture,
-                       Startup.resourceGroupsUrl,
-                       HttpUtility.UrlEncode(Startup.subscriptionId));
-                HttpClient client = new HttpClient();
-                HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, requestUrl);
-                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", usertoken.accessToken);
-                HttpResponseMessage response = await client.SendAsync(request);
-                string responseString = await response.Content.ReadAsStringAsync();
-                ResourceGroups resourceGroups = JsonConvert.DeserializeObject<ResourceGroups>(responseString);
-               foreach(Value v in resourceGroups.value)
-                {
-                    requestUrl = String.Format(
-                      CultureInfo.InvariantCulture,
-                      Startup.resourceManagerWebSitesUrl,
-                      HttpUtility.UrlEncode(Startup.subscriptionId),
-                      HttpUtility.UrlEncode(v.name));
-                    client = new HttpClient();
-                    request = new HttpRequestMessage(HttpMethod.Get, requestUrl);
-                    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", usertoken.accessToken);
-                    response = await client.SendAsync(request);
-                    responseString = await response.Content.ReadAsStringAsync();
-                    Models.AzureRMWebSites.ResourceManagerWebSiteInfo resourceManagerWebSiteInfo = JsonConvert.DeserializeObject<Models.AzureRMWebSites.ResourceManagerWebSiteInfo>(responseString);
-                    resourceManagerWebSites.webSites.Add(resourceManagerWebSiteInfo);
-                    AppServiceCertificate appServiceCertificate = new AppServiceCertificate();
+                // Check local OAuthDataStore to see if we have previously cached OAuth bearer tokens for this user.
+                IEnumerable<OAuthTokenSet> query =
+                   from OAuthTokenSet in model.OAuthTokens where OAuthTokenSet.userId == userObjectID && OAuthTokenSet.resourceName == Startup.resourceGroupsId select OAuthTokenSet;
 
-                    foreach (Models.AzureRMWebSites.Value wsv in resourceManagerWebSiteInfo.value)
+                if (query.GetEnumerator().MoveNext() == false)
+                {
+                    usertoken.state = state;
+                    usertoken.userId = userObjectID;
+                    usertoken.resourceName = Startup.resourceGroupsId;
+                    model.OAuthTokens.Add(usertoken);
+                    await model.SaveChangesAsync();
+                    authError = "AuthorizationRequired";
+                }
+                else
+                {
+                    usertoken = query.First();
+                    appServiceCertificates.AccessToken = usertoken.accessToken;
+                    appServiceCertificates.RefreshToken = usertoken.refreshToken;
+                    appServiceCertificates.AccessTokenExpiry = usertoken.accessTokenExpiry;
+                    authError = null;
+
+
+                    string requestUrl = String.Format(
+                           CultureInfo.InvariantCulture,
+                           Startup.resourceGroupsUrl,
+                           HttpUtility.UrlEncode(Startup.subscriptionId));
+                    HttpClient client = new HttpClient();
+                    HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, requestUrl);
+                    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", usertoken.accessToken);
+                    HttpResponseMessage response = await client.SendAsync(request);
+                    string responseString = await response.Content.ReadAsStringAsync();
+                    ResourceGroups resourceGroups = JsonConvert.DeserializeObject<ResourceGroups>(responseString);
+                    foreach (Value v in resourceGroups.value)
                     {
-                        foreach(Models.AzureRMWebSites.Hostnamesslstate sslstate in wsv.properties.hostNameSslStates)
+                        requestUrl = String.Format(
+                          CultureInfo.InvariantCulture,
+                          Startup.resourceManagerWebSitesUrl,
+                          HttpUtility.UrlEncode(Startup.subscriptionId),
+                          HttpUtility.UrlEncode(v.name));
+                        client = new HttpClient();
+                        request = new HttpRequestMessage(HttpMethod.Get, requestUrl);
+                        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", usertoken.accessToken);
+                        response = await client.SendAsync(request);
+                        responseString = await response.Content.ReadAsStringAsync();
+                        Models.AzureRMWebSites.ResourceManagerWebSiteInfo resourceManagerWebSiteInfo = JsonConvert.DeserializeObject<Models.AzureRMWebSites.ResourceManagerWebSiteInfo>(responseString);
+                        resourceManagerWebSites.webSites.Add(resourceManagerWebSiteInfo);
+                        AppServiceCertificate appServiceCertificate = new AppServiceCertificate();
+
+                        foreach (Models.AzureRMWebSites.Value wsv in resourceManagerWebSiteInfo.value)
                         {
-                            if(sslstate.sslState == 1)
+                            foreach (Models.AzureRMWebSites.Hostnamesslstate sslstate in wsv.properties.hostNameSslStates)
                             {
-                                appServiceCertificate.SiteName = sslstate.name;
+                                if (sslstate.sslState == 1)
+                                {
+                                    appServiceCertificate.SiteName = sslstate.name;
+                                }
                             }
                         }
+                        requestUrl = String.Format(
+                          CultureInfo.InvariantCulture,
+                          Startup.resourceManagerWebCertificatesUrl,
+                          HttpUtility.UrlEncode(Startup.subscriptionId),
+                          HttpUtility.UrlEncode(v.name));
+                        client = new HttpClient();
+                        request = new HttpRequestMessage(HttpMethod.Get, requestUrl);
+                        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", usertoken.accessToken);
+                        response = await client.SendAsync(request);
+                        responseString = await response.Content.ReadAsStringAsync();
+                        Models.AzureRMWebCertificates.AzureRMWebCertificates azureRMWebCertificates = JsonConvert.DeserializeObject<Models.AzureRMWebCertificates.AzureRMWebCertificates>(responseString);
+                        foreach (Models.AzureRMWebCertificates.Value wsc in azureRMWebCertificates.value)
+                        {
+                            appServiceCertificate.KeyVaultSecretName = wsc.properties.keyVaultSecretName;
+                            appServiceCertificate.CertificateName = wsc.properties.subjectName;
+                            appServiceCertificate.KeyVaultId = wsc.properties.keyVaultId;
+                            appServiceCertificate.CertificateIssuer = wsc.properties.issuer;
+                            appServiceCertificate.CertificateExpiration = wsc.properties.expirationDate;
+                            appServiceCertificate.CertificateThumbprint = wsc.properties.thumbprint;
+                            appServiceCertificate.CertificateHostnames = wsc.properties.hostNames;
+                        }
+                        appServiceCertificates.appServiceCertificates.Add(appServiceCertificate);
                     }
-                    requestUrl = String.Format(
-                      CultureInfo.InvariantCulture,
-                      Startup.resourceManagerWebCertificatesUrl,
-                      HttpUtility.UrlEncode(Startup.subscriptionId),
-                      HttpUtility.UrlEncode(v.name));
-                    client = new HttpClient();
-                    request = new HttpRequestMessage(HttpMethod.Get, requestUrl);
-                    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", usertoken.accessToken);
-                    response = await client.SendAsync(request);
-                    responseString = await response.Content.ReadAsStringAsync();
-                    Models.AzureRMWebCertificates.AzureRMWebCertificates azureRMWebCertificates = JsonConvert.DeserializeObject<Models.AzureRMWebCertificates.AzureRMWebCertificates>(responseString);
-                    foreach(Models.AzureRMWebCertificates.Value wsc in azureRMWebCertificates.value)
-                    {
-                        appServiceCertificate.KeyVaultSecretName = wsc.properties.keyVaultSecretName;
-                        appServiceCertificate.CertificateName = wsc.properties.subjectName;
-                        appServiceCertificate.KeyVaultId = wsc.properties.keyVaultId;
-                        appServiceCertificate.CertificateIssuer = wsc.properties.issuer;
-                        appServiceCertificate.CertificateExpiration = wsc.properties.expirationDate;
-                        appServiceCertificate.CertificateThumbprint = wsc.properties.thumbprint;
-                        appServiceCertificate.CertificateHostnames = wsc.properties.hostNames;
-                    }
-                    appServiceCertificates.appServiceCertificates.Add(appServiceCertificate);
                 }
                 return View(appServiceCertificates);
             }
-            else
-            {
-                return View(appServiceCertificates);
-            }
+
         }
+
+
         public string GenerateState(string userObjId, string requestUrl)
         {
             try

@@ -14,27 +14,22 @@
 //    limitations under the License.
 //----------------------------------------------------------------------------------------------
 
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Web;
-using System.Web.Mvc;
-
-// The following using statements were added for this sample.
-using System.Configuration;
-using System.Threading.Tasks;
-using WebApp.Models;
-using System.Security.Claims;
 using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using Newtonsoft.Json;
-using Microsoft.IdentityModel.Clients.ActiveDirectory;
-using Microsoft.Owin.Security.DataProtection;
-using Microsoft.Owin.Security.Cookies;
 using System.Runtime.Serialization.Formatters.Binary;
-using System.IO;
-using System.Net;
+using System.Security.Claims;
+// The following using statements were added for this sample.
+using System.Threading.Tasks;
+using System.Web;
+using System.Web.Mvc;
+using WebApp.Models;
 
 namespace WebApp.Controllers
 {
@@ -88,6 +83,7 @@ namespace WebApp.Controllers
             token.tokenType = recvtoken.token_type;
             token.refreshToken = recvtoken.refresh_token;
             token.userId = userObjectID;
+            token.resourceName = Startup.graphResourceId;
             token.accessTokenExpiry = DateTime.Now.AddSeconds(Convert.ToDouble(recvtoken.expires_in)).ToUniversalTime().ToString(DateTimeFormatInfo.CurrentInfo.UniversalSortableDateTimePattern);
             Random rnd = new Random();
             token.Id = rnd.Next();
@@ -130,7 +126,7 @@ namespace WebApp.Controllers
             ViewBag.AuthorizationUrl = msoauthUri;
             // Check local OAuthDataStore to see if we have previously cached OAuth bearer tokens for this user.
             IEnumerable<OAuthTokenSet> query =
-               from OAuthTokenSet in model.OAuthTokens where OAuthTokenSet.userId == userObjectID select OAuthTokenSet;
+               from OAuthTokenSet in model.OAuthTokens where OAuthTokenSet.userId == userObjectID && OAuthTokenSet.state == state select OAuthTokenSet;
 
             if (query.GetEnumerator().MoveNext() == false)
             {

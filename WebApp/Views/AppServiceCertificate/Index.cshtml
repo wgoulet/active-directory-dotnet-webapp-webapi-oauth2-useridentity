@@ -3,13 +3,16 @@
 @model WebApp.Models.AppServiceCertificates
 
 @{
-    ViewBag.Title = "Application Service Certificates";
+                /**/
+
+                ViewBag.Title = "Application Service Certificates";
 }
 
 <h2>Application Service Certificates</h2>
-<div id="dialog" title="Basic dialog">
-    <p>This is the default dialog which is useful for displaying information. The dialog window can be moved, resized and closed with the 'x' icon.</p>
-</div>
+@if (ViewBag.Error == "AuthorizationRequired")
+{
+    <p>You have to sign-in to access your keyvault. Click <a href="@ViewBag.AuthorizationUrl" title="here">here</a> to sign-in.</p>
+}
 @foreach (WebApp.Models.AppServiceCertificate asc in Model.appServiceCertificates)
 {
     <table class="table table-bordered table-striped">
@@ -26,13 +29,13 @@
                                 @Html.CheckBox("Replace", asc.Replace, new { id = "replaceflag" })
                                 @Html.Label("replaceflag", "Replace this certificate on the site?")
                                 @Html.Hidden("CertificateName", asc.CertificateName)
-                                @Html.Hidden("KeyVaultId",asc.KeyVaultId)
-                                @Html.Hidden("KeyVaultSecretName",asc.KeyVaultSecretName)
-                                @Html.Hidden("CertificateIssuer",asc.CertificateIssuer)
-                                @Html.Hidden("CertificateExpiration",asc.CertificateExpiration)
-                                @Html.Hidden("CertificateThumbprint",asc.CertificateThumbprint)
-                                @Html.Hidden("SiteName",asc.SiteName)
-                                @Html.Hidden("CertificateHostnames",asc.CertificateHostnames)                                
+                                @Html.Hidden("KeyVaultId", asc.KeyVaultId)
+                                @Html.Hidden("KeyVaultSecretName", asc.KeyVaultSecretName)
+                                @Html.Hidden("CertificateIssuer", asc.CertificateIssuer)
+                                @Html.Hidden("CertificateExpiration", asc.CertificateExpiration)
+                                @Html.Hidden("CertificateThumbprint", asc.CertificateThumbprint)
+                                @Html.Hidden("SiteName", asc.SiteName)
+                                @Html.Hidden("CertificateHostnames", asc.CertificateHostnames)
                                 <br />
                                 <input type="submit" class="btn btn-default" value="Process" />
                             </div>

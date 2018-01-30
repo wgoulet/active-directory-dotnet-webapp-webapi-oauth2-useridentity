@@ -90,11 +90,14 @@ namespace WebApp.Controllers
                 System.Runtime.Serialization.Json.DataContractJsonSerializer json = new System.Runtime.Serialization.Json.DataContractJsonSerializer(typeof(OAuthTokenResponse));
                 OAuthTokenResponse recvtoken = json.ReadObject(resp.GetResponseStream()) as OAuthTokenResponse;
                 OAuthDataStore model = new OAuthDataStore();
-                OAuthTokenSet token = new OAuthTokenSet();
+                IEnumerable<OAuthTokenSet> query =
+                    from OAuthTokenSet in model.OAuthTokens where OAuthTokenSet.state == Url.Encode(state) select OAuthTokenSet;
+                OAuthTokenSet token = query.First();
                 token.accessToken = recvtoken.access_token;
                 token.tokenType = recvtoken.token_type;
                 token.refreshToken = recvtoken.refresh_token;
                 token.userId = userObjectID;
+                token.state = state;
                 token.accessTokenExpiry = DateTime.Now.AddSeconds(Convert.ToDouble(recvtoken.expires_in)).ToUniversalTime().ToString(DateTimeFormatInfo.CurrentInfo.UniversalSortableDateTimePattern);
                 Random rnd = new Random();
                 token.Id = rnd.Next();

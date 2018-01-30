@@ -35,6 +35,7 @@ namespace WebApp
         public static string keyVaultUrl = ConfigurationManager.AppSettings["ida:KeyVaultUrl"];
         public static string keyVaultCreateCertificateUrl = ConfigurationManager.AppSettings["ida:KeyVaultCreateCertificateUrl"];
         public static string keyVaultName = ConfigurationManager.AppSettings["ida:KeyVaultName"];
+        public static string keyVaultResourceUrl = ConfigurationManager.AppSettings["ida:KeyVaultResourceUrl"];
         //private static string postLogoutRedirectUri = ConfigurationManager.AppSettings["ida:PostLogoutRedirectUri"];
 
         public static readonly string Authority = String.Format(CultureInfo.InvariantCulture, aadInstance, tenant);

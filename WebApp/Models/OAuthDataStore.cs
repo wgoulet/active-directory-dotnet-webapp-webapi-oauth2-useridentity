@@ -32,6 +32,8 @@ namespace WebApp.Models
         public string tokenType { get; set; }
         public string refreshToken { get; set; }
         public string userId { get; set; }
+        public string resourceName { get; set; }
+        public string state { get; set; }
 
     }
 }
