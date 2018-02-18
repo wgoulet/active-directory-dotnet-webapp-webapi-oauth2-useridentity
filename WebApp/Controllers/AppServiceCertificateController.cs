@@ -27,9 +27,11 @@ namespace WebApp.Controllers
     public class AppServiceCertificateController : Controller
     {
         OAuthDataStore model;
+        AppServiceCertificateStore ascStore;
         public AppServiceCertificateController()
         {
             model = new OAuthDataStore();
+            ascStore = new AppServiceCertificateStore();
         }
 
         // POST: /AppServiceCertificate/ClearOAuth
@@ -37,7 +39,9 @@ namespace WebApp.Controllers
         public async Task<ActionResult> ClearOAuth()
         {
             model.OAuthTokens.RemoveRange(model.OAuthTokens);
+            ascStore.appServiceCertificates.RemoveRange(ascStore.appServiceCertificates);
             var result = await model.SaveChangesAsync();
+            result = await ascStore.SaveChangesAsync();
             return RedirectToAction("Index", "AppServiceCertificate", new { authError = "AuthorizationRequired" });
         }
 
@@ -100,13 +104,16 @@ namespace WebApp.Controllers
         }
 
         // POST: /AppServiceCertificate/ReplaceCertificate
-        //[HttpPost]
         public async Task<ActionResult> ReplaceCertificate(AppServiceCertificate ascModel,string authError)
         {
             OAuthTokenSet usertoken = new OAuthTokenSet();
             HttpClient client = null;           
-            //HttpRequestMessage request = null;
-            //HttpResponseMessage response = null;
+            // If we have a replacement cert passed to us, persist that to the database.
+            if(Request.HttpMethod == HttpMethod.Post.Method)
+            {
+                ascStore.appServiceCertificates.Add(ascModel);
+                ascStore.SaveChanges();
+            }
             string responseString = null;
             string userObjectID = ClaimsPrincipal.Current.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier").Value;
             Uri redirectUri = new Uri(Request.Url.GetLeftPart(UriPartial.Authority).ToString() + "/OAuth");
@@ -132,6 +139,14 @@ namespace WebApp.Controllers
             {
                 usertoken = query.First();
                 authError = null;
+                // If we were redirected here back from the OAuth /authorization endpoint
+                // we need to redisplay the form instead of just processing the request.
+                if(Request.HttpMethod == HttpMethod.Get.Method)
+                {
+                    IEnumerable<AppServiceCertificate> cquery =
+                        from AppServiceCertificate in ascStore.appServiceCertificates where AppServiceCertificate.Replace == true select AppServiceCertificate;
+                    return View(cquery.First());
+                }
             }
             string kvname = ascModel.ReplacementName.Replace('.', '-');
             string requestUrl = String.Format(
@@ -140,7 +155,7 @@ namespace WebApp.Controllers
             KeyVaultRequest keyVaultRequest = new KeyVaultRequest();
             keyVaultRequest.policy = new Models.KeyVault.Policy();
             keyVaultRequest.policy.x509_props = new X509_Props();
-            keyVaultRequest.policy.x509_props.subject = String.Format("DN={0}", kvname);
+            keyVaultRequest.policy.x509_props.subject = String.Format("CN={0}", ascModel.ReplacementName);
             string postData = JsonConvert.SerializeObject(keyVaultRequest);
             System.Text.ASCIIEncoding encoding = new System.Text.ASCIIEncoding();
             byte[] bytes = encoding.GetBytes(postData);
@@ -148,15 +163,57 @@ namespace WebApp.Controllers
             HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, requestUrl);
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", usertoken.accessToken);
             request.Content = new ByteArrayContent(bytes);
+            request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
             HttpResponseMessage resp = await client.SendAsync(request);
-            if (resp.StatusCode != HttpStatusCode.OK)
+            if (resp.StatusCode != HttpStatusCode.Accepted)
             {
                 ViewBag.Error = "unauthorized";
                 AppServiceCertificates ascs = new AppServiceCertificates();
                 ascs.appServiceCertificates.Add(ascModel);
                 return RedirectToAction("Index", "AppServiceCertificate");
             }
+            else
+            {
+
+            }
             responseString = await resp.Content.ReadAsStringAsync();
+            dynamic result = JsonConvert.DeserializeObject<dynamic>(responseString);
+            // Working with dynamic type here so I don't have to import all the object model definitions
+            // for each type returned by the KeyVault REST API.
+            KeyVaultRequestResponse kvResponse = new KeyVaultRequestResponse();
+            foreach(var item in result)
+            {
+                if(item.Name == "csr")
+                {
+                    kvResponse.csr = item.Value;
+                }
+                if(item.Name == "id")
+                {
+                    kvResponse.id = item.Value;
+                }
+                if(item.Name == "request_id")
+                {
+                    kvResponse.requestID = item.Value;
+                }
+            }
+            // Submit CSR to Condor service
+            string condorapikey = "FILLME";
+            string zoneinfo = "FILLME";
+            string condoruri = "FILLME";
+            WebApp.Models.Condor.CertificateSigningRequest req = new Models.Condor.CertificateSigningRequest();
+            req.certificateSigningRequest = kvResponse.getCSRWithHeaders();
+            req.zoneId = zoneinfo;
+            postData = JsonConvert.SerializeObject(req);
+            encoding = new System.Text.ASCIIEncoding();
+            bytes = encoding.GetBytes(postData);
+            client = new HttpClient();
+            request = new HttpRequestMessage(HttpMethod.Post, condoruri);
+            request.Headers.Add("tppl-api-key", condorapikey);
+            request.Content = new ByteArrayContent(bytes);
+            request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+            resp = await client.SendAsync(request);
+            // Now poll Condor API to wait for cert to be issued, then install in KeyVault by merging
+            // with previously created request.
             return RedirectToAction("Index", "AppServiceCertificate");
         }
 

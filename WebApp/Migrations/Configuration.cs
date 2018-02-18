@@ -5,15 +5,14 @@ namespace WebApp.Migrations
     using System.Data.Entity.Migrations;
     using System.Linq;
 
-    internal sealed class Configuration : DbMigrationsConfiguration<WebApp.Models.OAuthDataStore>
+    internal sealed class Configuration : DbMigrationsConfiguration<WebApp.Models.AppServiceCertificateStore>
     {
         public Configuration()
         {
             AutomaticMigrationsEnabled = true;
-            ContextKey = "WebApp.Models.OAuthDataStore";
         }
 
-        protected override void Seed(WebApp.Models.OAuthDataStore context)
+        protected override void Seed(WebApp.Models.AppServiceCertificateStore context)
         {
             //  This method will be called after migrating to the latest version.
 
