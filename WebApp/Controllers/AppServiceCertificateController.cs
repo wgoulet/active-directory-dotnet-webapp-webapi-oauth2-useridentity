@@ -239,10 +239,25 @@ namespace WebApp.Controllers
             // Now poll Condor API to wait for cert to be issued, then install in KeyVault by merging
             // with previously created request.
             responseString = await resp.Content.ReadAsStringAsync();
-            Object temp = JsonConvert.DeserializeObject(responseString);
-          
             JsonConverter converter = new CondorCertReqConverter();
             WebApp.Models.Condor.CertificateSigningRequest  certreqresp = JsonConvert.DeserializeObject<Models.Condor.CertificateSigningRequest>(responseString,converter);
+
+            bool wait = true;
+            while (wait)
+            {
+                client = new HttpClient();
+                request = new HttpRequestMessage(HttpMethod.Get, String.Format("{0}/v1/certificaterequests/{1}", condorURL, certreqresp.id));
+                request.Headers.Add("tppl-api-key", condorAPIKey);
+                resp = await client.SendAsync(request);
+                responseString = await resp.Content.ReadAsStringAsync();
+                certreqresp = JsonConvert.DeserializeObject<Models.Condor.CertificateSigningRequest>(responseString, converter);
+                if(certreqresp.status == "ISSUED")
+                {
+                    wait = false;
+                }
+                System.Threading.Thread.Sleep(5000);
+            }
+            string status = certreqresp.status;
             return RedirectToAction("Index", "AppServiceCertificate");
         }
 

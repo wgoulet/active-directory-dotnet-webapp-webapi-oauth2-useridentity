@@ -5,44 +5,6 @@ using System.Web;
 
 namespace WebApp.Models.Condor
 {
-    public class RootObject
-    {
-        public RootObject()
-        {
-            creationDate = null;
-            modificationDate = null;
-        }
-        public string certificateSigningRequest { get; set; }
-        public string zoneId { get; set; }
-        public string id { set; get; }
-        public string companyId { set; get; }
-        public string status { set; get; }
-        public string errorInformation { set; get; }
-        public string type { set; get; }
-        public string code { set; get; }
-        public string message { set; get; }
-        public string args { set; get; }
-        public string testcaCAConnector { set; get; }
-        public string certificateName { set; get; }
-        public string certificateOwnerUserId { set; get; }
-        public CertificatePolicyIds certificatePolicyIds { set; get; }
-        public string certificateProviderId { set; get; }
-        public Product product { set; get; }
-        public string certificateAuthority { set; get; }
-        public string validationScopeId { set; get; }
-        public string certificateType { set; get; }
-        public string validityPeriod { set; get; }
-        public string hashAlgorithm { set; get; }
-        public string caconfigurationId { set; get; }
-        public List<object> certificateIds { set; get; }
-        public string subjectDN { set; get; }
-        public string keyLength { set; get; }
-        public string keyType { set; get; }
-        public DateTime? creationDate { set; get; }
-        public DateTime? modificationDate { set; get; }
-
-    }
-
     public class CertificateSigningRequest
     {
         public CertificateSigningRequest()

@@ -1,9 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2013
-VisualStudioVersion = 12.0.21005.1
+# Visual Studio 15
+VisualStudioVersion = 15.0.27130.2026
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebApp", "WebApp\WebApp.csproj", "{5819E8AF-2D6D-44B2-B65F-41901FFFE7D4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SecretStoreUtility", "SecretStoreUtility\SecretStoreUtility.csproj", "{D9318BF9-819F-4582-9603-3646EB51F256}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,8 +17,15 @@ Global
 		{5819E8AF-2D6D-44B2-B65F-41901FFFE7D4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5819E8AF-2D6D-44B2-B65F-41901FFFE7D4}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5819E8AF-2D6D-44B2-B65F-41901FFFE7D4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D9318BF9-819F-4582-9603-3646EB51F256}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D9318BF9-819F-4582-9603-3646EB51F256}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D9318BF9-819F-4582-9603-3646EB51F256}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D9318BF9-819F-4582-9603-3646EB51F256}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {5932BB29-1680-4939-8D51-22F80BC4CCE1}
 	EndGlobalSection
 EndGlobal
