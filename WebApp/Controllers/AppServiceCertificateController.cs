@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Web;
 using System.Web.Mvc;
+using System.Data;
+using System.Data.SqlClient;
 
 // The following using statements were added for this sample.
 using System.Configuration;
@@ -28,10 +30,32 @@ namespace WebApp.Controllers
     {
         OAuthDataStore model;
         AppServiceCertificateStore ascStore;
+        string condorAPIKey;
+        string condorURL;
         public AppServiceCertificateController()
         {
             model = new OAuthDataStore();
             ascStore = new AppServiceCertificateStore();
+            string connectionString = "Server=VED2k12;Database=Secrets;Integrated Security = true";
+            string queryString = "SELECT * FROM SecretEntries";
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+                SqlCommand sqlCommand = new SqlCommand(queryString, connection);
+                SqlDataReader reader = sqlCommand.ExecuteReader();
+                while (reader.Read())
+                {
+                    if(reader.GetString(0) == "apikey")
+                    {
+                        condorAPIKey = reader.GetString(1);
+                    }
+                    if(reader.GetString(0) == "url")
+                    {
+                        condorURL = reader.GetString(1);
+                    }
+                }
+                connection.Close();
+            }
         }
 
         // POST: /AppServiceCertificate/ClearOAuth
@@ -197,23 +221,28 @@ namespace WebApp.Controllers
                 }
             }
             // Submit CSR to Condor service
-            string condorapikey = "FILLME";
-            string zoneinfo = "FILLME";
-            string condoruri = "FILLME";
+            string zoneinfo = "fee52da0-0b58-11e8-af01-13126b5652e8";
             WebApp.Models.Condor.CertificateSigningRequest req = new Models.Condor.CertificateSigningRequest();
             req.certificateSigningRequest = kvResponse.getCSRWithHeaders();
             req.zoneId = zoneinfo;
-            postData = JsonConvert.SerializeObject(req);
+            JsonSerializerSettings serializerSettings = new JsonSerializerSettings();
+            serializerSettings.NullValueHandling = NullValueHandling.Ignore;
+            postData = JsonConvert.SerializeObject(req,serializerSettings);
             encoding = new System.Text.ASCIIEncoding();
             bytes = encoding.GetBytes(postData);
             client = new HttpClient();
-            request = new HttpRequestMessage(HttpMethod.Post, condoruri);
-            request.Headers.Add("tppl-api-key", condorapikey);
+            request = new HttpRequestMessage(HttpMethod.Post, String.Format("{0}/v1/certificaterequests",condorURL));
+            request.Headers.Add("tppl-api-key", condorAPIKey);
             request.Content = new ByteArrayContent(bytes);
             request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
             resp = await client.SendAsync(request);
             // Now poll Condor API to wait for cert to be issued, then install in KeyVault by merging
             // with previously created request.
+            responseString = await resp.Content.ReadAsStringAsync();
+            Object temp = JsonConvert.DeserializeObject(responseString);
+          
+            JsonConverter converter = new CondorCertReqConverter();
+            WebApp.Models.Condor.CertificateSigningRequest  certreqresp = JsonConvert.DeserializeObject<Models.Condor.CertificateSigningRequest>(responseString,converter);
             return RedirectToAction("Index", "AppServiceCertificate");
         }
 
